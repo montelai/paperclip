@@ -1,11 +1,18 @@
-export {
-  IssueStatus,
-  IssuePriority,
-  DependencyType,
-  type Issue,
-  type CreateIssueInput,
-  type UpdateIssueInput,
-  type IssueFilters,
-  type DependencyInfo,
-  type TaskBackend,
+export type {
+  Issue,
+  CreateIssueInput,
+  UpdateIssueInput,
+  IssueFilters,
+  DependencyInfo,
+  IssueAgentComment,
+  CreateAgentCommentInput,
+  TaskBackend,
 } from './types.js';
+
+export type { TaskBackendConfig } from './config.js';
+export { parseTaskBackendConfig } from './config.js';
+
+export { createTaskBackend } from './factory.js';
+
+export { PaperclipBackend } from './backends/paperclip.js';
+export { PlaneBackend } from './backends/plane.js';

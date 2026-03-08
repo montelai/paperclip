@@ -1,6 +1,6 @@
 {
   "name": "@paperclipai/task-backend",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -28,10 +28,13 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest",
+    "test:run": "vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@paperclipai/db": "workspace:*",
+    "drizzle-orm": "^0.38.4"
+  },
   "devDependencies": {
     "@types/node": "^24.6.0",
     "typescript": "^5.7.3",
