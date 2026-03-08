@@ -230,6 +230,18 @@ pnpm db:migrate       # Apply migrations
 
 See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 
+### Architecture
+
+Paperclip uses a pluggable task backend system that supports multiple task management platforms:
+
+- **[@paperclipai/task-backend](packages/task-backend/README.md)** - Pluggable task backend abstraction
+  - Native Paperclip backend (default)
+  - [Plane.so](https://plane.so) integration
+  - Easy to extend with new backends
+  - Built-in migration tools
+
+See the [Task Backend User Guide](docs/integrations/TASK-BACKEND-USER-GUIDE.md) for configuration and usage.
+
 <br/>
 
 ## Roadmap
