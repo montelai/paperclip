@@ -1,0 +1,226 @@
+# Combined Paperclip + Plane Deployment
+# This runs both services together with shared networking
+
+services:
+  # ===================
+  # PostgreSQL Database
+  # ===================
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: paperclip
+      POSTGRES_PASSWORD: paperclip
+      POSTGRES_DB: paperclip
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperclip -d paperclip"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - paperclip-network
+
+  # ===================
+  # Redis (for Plane)
+  # ===================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - paperclip-network
+
+  # ===================
+  # MinIO (for Plane storage)
+  # ===================
+  minio:
+    image: minio/minio:latest
+    command: server /export --console-address ":9090"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: plane
+      MINIO_ROOT_PASSWORD: planepassword
+    volumes:
+      - minio-data:/export
+    networks:
+      - paperclip-network
+
+  # ===================
+  # Paperclip Server
+  # ===================
+  paperclip:
+    build: .
+    ports:
+      - "3100:3100"
+    environment:
+      DATABASE_URL: postgres://paperclip:paperclip@db:5432/paperclip
+      PORT: "3100"
+      SERVE_UI: "true"
+      PAPERCLIP_DEPLOYMENT_MODE: "authenticated"
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: "private"
+      PAPERCLIP_PUBLIC_URL: "${PAPERCLIP_PUBLIC_URL:-http://localhost:3100}"
+      BETTER_AUTH_SECRET: "${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}"
+      # Task Backend Configuration
+      TASK_BACKEND_TYPE: "${TASK_BACKEND_TYPE:-paperclip}"
+      PLANE_API_URL: "${PLANE_API_URL:-http://plane-web:3000}"
+      PLANE_API_KEY: "${PLANE_API_KEY:-}"
+      PLANE_WORKSPACE_SLUG: "${PLANE_WORKSPACE_SLUG:-}"
+      PLANE_DEFAULT_PROJECT_ID: "${PLANE_DEFAULT_PROJECT_ID:-}"
+    volumes:
+      - paperclip-data:/paperclip
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - paperclip-network
+    restart: unless-stopped
+
+  # ===================
+  # Plane - Web (Frontend)
+  # ===================
+  plane-web:
+    image: makeplane/plane-frontend:latest
+    restart: unless-stopped
+    command: node web/server.js web
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    environment:
+      WEB_URL: "${WEB_URL:-http://localhost:3000}"
+      CORS_ALLOWED_ORIGINS: "${WEB_URL:-http://localhost:3000},http://localhost:3100"
+      NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}"
+    networks:
+      - paperclip-network
+    depends_on:
+      - plane-api
+      - plane-worker
+
+  # ===================
+  # Plane - API (Backend)
+  # ===================
+  plane-api:
+    image: makeplane/plane-backend:latest
+    restart: unless-stopped
+    command: ./bin/docker-entrypoint-api.sh
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    environment:
+      # Database
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: planepassword
+      POSTGRES_DB: plane
+      DATABASE_URL: postgres://plane:planepassword@plane-db:5432/plane
+      # Redis
+      REDIS_URL: redis://redis:6379/
+      # Application
+      WEB_URL: "${WEB_URL:-http://localhost:3000}"
+      CORS_ALLOWED_ORIGINS: "${WEB_URL:-http://localhost:3000},http://localhost:3100"
+      # MinIO/S3
+      USE_MINIO: "1"
+      AWS_REGION: ""
+      AWS_ACCESS_KEY_ID: plane
+      AWS_SECRET_ACCESS_KEY: planepassword
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_BUCKET_NAME: plane-uploads
+      # Secret Key
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE:-your-secret-key-change-in-production}"
+    networks:
+      - paperclip-network
+    depends_on:
+      - plane-db
+      - redis
+      - minio
+
+  # ===================
+  # Plane - Worker (Background Jobs)
+  # ===================
+  plane-worker:
+    image: makeplane/plane-backend:latest
+    restart: unless-stopped
+    command: ./bin/docker-entrypoint-worker.sh
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    environment:
+      # Database
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: planepassword
+      POSTGRES_DB: plane
+      DATABASE_URL: postgres://plane:planepassword@plane-db:5432/plane
+      # Redis
+      REDIS_URL: redis://redis:6379/
+      # Application
+      WEB_URL: "${WEB_URL:-http://localhost:3000}"
+      # MinIO/S3
+      USE_MINIO: "1"
+      AWS_REGION: ""
+      AWS_ACCESS_KEY_ID: plane
+      AWS_SECRET_ACCESS_KEY: planepassword
+      AWS_S3_ENDPOINT_URL: http://minio:9000
+      AWS_S3_BUCKET_NAME: plane-uploads
+      # Secret Key
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE:-your-secret-key-change-in-production}"
+    networks:
+      - paperclip-network
+    depends_on:
+      - plane-db
+      - redis
+      - minio
+
+  # ===================
+  # Plane Database
+  # ===================
+  plane-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: planepassword
+      POSTGRES_DB: plane
+    volumes:
+      - plane-pgdata:/var/lib/postgresql/data
+    networks:
+      - paperclip-network
+
+  # ===================
+  # Nginx Reverse Proxy
+  # ===================
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - paperclip
+      - plane-web
+    networks:
+      - paperclip-network
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  paperclip-data:
+  plane-pgdata:
+  redis-data:
+  minio-data:
+
+networks:
+  paperclip-network:
+    driver: bridge
