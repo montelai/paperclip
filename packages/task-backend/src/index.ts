@@ -16,3 +16,6 @@ export { createTaskBackend } from './factory.js';
 
 export { PaperclipBackend } from './backends/paperclip.js';
 export { PlaneBackend } from './backends/plane.js';
+
+export type { MigrationOptions, MigrationResult } from './migration.js';
+export { migrateIssues } from './migration.js';
