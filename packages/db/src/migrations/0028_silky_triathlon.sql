@@ -1,0 +1,1 @@
+ALTER TABLE "task_backend_config" ADD CONSTRAINT "task_backend_config_company_uniq" UNIQUE("company_id");

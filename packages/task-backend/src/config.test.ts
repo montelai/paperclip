@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseTaskBackendConfig } from './config.js';
+import { parseTaskBackendConfig, InvalidBackendTypeError } from './config.js';
 
 describe('parseTaskBackendConfig', () => {
   it('should return paperclip config by default', () => {
@@ -60,5 +60,15 @@ describe('parseTaskBackendConfig', () => {
       workspaceSlug: '',
       defaultProjectId: '',
     });
+  });
+
+  it('should throw InvalidBackendTypeError for invalid TASK_BACKEND_TYPE', () => {
+    expect(() => parseTaskBackendConfig({ TASK_BACKEND_TYPE: 'invalid' }))
+      .toThrow(InvalidBackendTypeError);
+  });
+
+  it('should include invalid type in error message', () => {
+    expect(() => parseTaskBackendConfig({ TASK_BACKEND_TYPE: 'foo' }))
+      .toThrow('Invalid TASK_BACKEND_TYPE: "foo"');
   });
 });
