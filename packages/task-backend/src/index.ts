@@ -9,4 +9,10 @@ export type {
   TaskBackend,
 } from './types.js';
 
+export type { TaskBackendConfig } from './config.js';
+export { parseTaskBackendConfig } from './config.js';
+
+export { createTaskBackend } from './factory.js';
+
 export { PaperclipBackend } from './backends/paperclip.js';
+export { PlaneBackend } from './backends/plane.js';
