@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, unique } from "drizzle-orm/pg-core";
 import { companies } from "./companies.js";
 
 export const taskBackendConfig = pgTable(
@@ -16,5 +16,6 @@ export const taskBackendConfig = pgTable(
   },
   (table) => ({
     companyIdx: index("task_backend_config_company_idx").on(table.companyId),
+    companyUniq: unique("task_backend_config_company_uniq").on(table.companyId),
   }),
 );

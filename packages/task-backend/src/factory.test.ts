@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createTaskBackend } from './factory.js';
+import { createTaskBackend, PlaneConfigValidationError } from './factory.js';
 import { PaperclipBackend } from './backends/paperclip.js';
 import { PlaneBackend } from './backends/plane.js';
 import type { Db } from '@paperclipai/db';
@@ -42,5 +42,77 @@ describe('createTaskBackend', () => {
     expect(() => 
       createTaskBackend({ type: 'unknown' } as any, mockDb, companyId)
     ).toThrow('Unknown backend type: unknown');
+  });
+
+  it('should throw PlaneConfigValidationError when apiKey is empty', () => {
+    expect(() =>
+      createTaskBackend(
+        {
+          type: 'plane',
+          plane: {
+            apiUrl: 'https://api.plane.so',
+            apiKey: '',
+            workspaceSlug: 'workspace',
+            defaultProjectId: 'project-123',
+          },
+        },
+        mockDb,
+        companyId,
+      )
+    ).toThrow(PlaneConfigValidationError);
+  });
+
+  it('should throw PlaneConfigValidationError when workspaceSlug is empty', () => {
+    expect(() =>
+      createTaskBackend(
+        {
+          type: 'plane',
+          plane: {
+            apiUrl: 'https://api.plane.so',
+            apiKey: 'test-key',
+            workspaceSlug: '',
+            defaultProjectId: 'project-123',
+          },
+        },
+        mockDb,
+        companyId,
+      )
+    ).toThrow(PlaneConfigValidationError);
+  });
+
+  it('should throw PlaneConfigValidationError when defaultProjectId is empty', () => {
+    expect(() =>
+      createTaskBackend(
+        {
+          type: 'plane',
+          plane: {
+            apiUrl: 'https://api.plane.so',
+            apiKey: 'test-key',
+            workspaceSlug: 'workspace',
+            defaultProjectId: '',
+          },
+        },
+        mockDb,
+        companyId,
+      )
+    ).toThrow(PlaneConfigValidationError);
+  });
+
+  it('should include all missing fields in error message', () => {
+    expect(() =>
+      createTaskBackend(
+        {
+          type: 'plane',
+          plane: {
+            apiUrl: 'https://api.plane.so',
+            apiKey: '',
+            workspaceSlug: '',
+            defaultProjectId: '',
+          },
+        },
+        mockDb,
+        companyId,
+      )
+    ).toThrow('apiKey, workspaceSlug, defaultProjectId');
   });
 });
